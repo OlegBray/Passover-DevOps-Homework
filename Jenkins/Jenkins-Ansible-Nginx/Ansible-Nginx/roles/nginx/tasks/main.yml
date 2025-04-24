@@ -8,7 +8,7 @@
 
     - name: Get Nginx port from local Consul
       uri:
-        url: "http://localhost:8500/v1/kv/port-nginx?raw"
+        url: "http://consul:8500/v1/kv/port-nginx?raw"
         return_content: yes
       register: nginx_port_response
       delegate_to: localhost
