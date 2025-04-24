@@ -52,7 +52,7 @@ pipeline {
                         ls -la
                         
                         # Run ansible-playbook with the inventory file
-                        ansible-playbook -i inventory.ini playbook.yml -v
+                        ansible-playbook -i inventory.ini nginx.yml -v
                     '''
                 }
             }
