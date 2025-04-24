@@ -7,6 +7,28 @@ pipeline {
         // We'll use withEnv later for the actual credentials
     }
     stages {
+        stage('Install Ansible') {
+            steps {
+                sh '''
+                    # Update package lists
+                    apt-get update -y || true
+                    
+                    # Check if Python and pip are installed
+                    which python3 || apt-get install -y python3
+                    which pip3 || apt-get install -y python3-pip
+                    
+                    # Install Ansible
+                    pip3 install ansible
+                    
+                    # Verify installation
+                    ansible --version
+                    
+                    # Install any required Ansible collections
+                    ansible-galaxy collection install community.general || true
+                    ansible-galaxy collection install amazon.aws || true
+                '''
+            }
+        }
         
         stage('Read AWS Credentials from Vault') {
             steps {
@@ -41,6 +63,20 @@ pipeline {
             }
         }
         
+        stage('Install Ansible Galaxy Requirements') {
+            steps {
+                sh '''
+                    # Check if requirements.yml exists and install if it does
+                    if [ -f "requirements.yml" ]; then
+                        ansible-galaxy install -r requirements.yml
+                        echo "Ansible Galaxy requirements installed"
+                    else
+                        echo "No requirements.yml file found"
+                    fi
+                '''
+            }
+        }
+        
         stage('Run Ansible Playbook') {
             steps {
                 // Using the AWS credentials from Vault
@@ -52,6 +88,7 @@ pipeline {
                         ls -la
                         
                         # Run ansible-playbook with the inventory file
+                        # Note: Changed playbook.yml to nginx.yml as specified
                         ansible-playbook -i inventory.ini nginx.yml -v
                     '''
                 }
