@@ -7,6 +7,17 @@ pipeline {
         // We'll use withEnv later for the actual credentials
     }
     stages {
+
+        stage('Checkout via SSH') {
+            steps {
+                script {
+                    withEnv(["GIT_SSH_COMMAND=ssh -i /root/.ssh/id_rsa -o StrictHostKeyChecking=no"]) {
+                        git 'git@github.com:your-username/your-repo.git'
+                    }
+                }
+            }
+        }
+        
         stage('Read AWS Credentials from Vault') {
             steps {
                 withCredentials([string(credentialsId: 'vault-token', variable: 'VAULT_TOKEN')]) {
