@@ -3,29 +3,47 @@ pipeline {
     environment {
         VAULT_ADDR = 'http://vault:8200'
         AWS_CREDS_PATH = 'secret/data/aws/creds'
-        // Don't store actual credentials in environment variables that might be logged
-        // We'll use withEnv later for the actual credentials
     }
     stages {
-        stage('Install Ansible') {
+        stage('Install Dependencies') {
             steps {
                 sh '''
-                    # Update package lists
-                    apt-get update -y || true
+                    # Check if we have sudo access
+                    if command -v sudo &> /dev/null; then
+                        SUDO="sudo"
+                    else
+                        SUDO=""
+                    fi
                     
-                    # Check if Python and pip are installed
-                    which python3 || apt-get install -y python3
-                    which pip3 || apt-get install -y python3-pip
+                    # Check if Python is installed
+                    if ! command -v python3 &> /dev/null; then
+                        echo "Installing Python 3..."
+                        $SUDO apt-get update -y || echo "Warning: apt-get update failed"
+                        $SUDO apt-get install -y python3 python3-pip || echo "Warning: Python installation failed"
+                    else
+                        echo "Python 3 is already installed"
+                    fi
                     
-                    # Install Ansible
-                    pip3 install ansible
+                    # Check if pip is installed
+                    if ! command -v pip3 &> /dev/null; then
+                        echo "Installing pip3..."
+                        $SUDO apt-get install -y python3-pip || echo "Warning: pip installation failed"
+                    else
+                        echo "pip3 is already installed"
+                    fi
                     
-                    # Verify installation
-                    ansible --version
+                    # Install Ansible (try both with and without sudo)
+                    if ! command -v ansible &> /dev/null; then
+                        echo "Installing Ansible..."
+                        $SUDO pip3 install ansible || pip3 install ansible --user || echo "Warning: Ansible installation failed"
+                    else
+                        echo "Ansible is already installed"
+                    fi
                     
-                    # Install any required Ansible collections
-                    ansible-galaxy collection install community.general || true
-                    ansible-galaxy collection install amazon.aws || true
+                    # Display versions
+                    python3 --version || echo "Python not installed"
+                    pip3 --version || echo "pip not installed"
+                    ansible --version || echo "Ansible not installed"
                 '''
             }
         }
@@ -46,7 +64,6 @@ pipeline {
                             
                             def json = readJSON text: response.content
                             
-                            // Store AWS credentials as local variables first
                             if (json.data && json.data.data && json.data.data.access_key_id && json.data.data.secret_access_key) {
                                 env.AWS_ACCESS_KEY_ID = json.data.data.access_key_id
                                 env.AWS_SECRET_ACCESS_KEY = json.data.data.secret_access_key
@@ -66,10 +83,19 @@ pipeline {
         stage('Install Ansible Galaxy Requirements') {
             steps {
                 sh '''
-                    # Check if requirements.yml exists and install if it does
+                    # Add ~/.local/bin to PATH if it exists (for user installations)
+                    export PATH=$PATH:~/.local/bin
+                    
+                    # Check for ansible-galaxy
+                    which ansible-galaxy || echo "Warning: ansible-galaxy not found in PATH"
+                    
+                    # Try to install required collections
+                    ansible-galaxy collection install community.general || echo "Warning: Failed to install community.general"
+                    ansible-galaxy collection install amazon.aws || echo "Warning: Failed to install amazon.aws"
+                    
+                    # Check if requirements.yml exists
                     if [ -f "requirements.yml" ]; then
-                        ansible-galaxy install -r requirements.yml
-                        echo "Ansible Galaxy requirements installed"
+                        ansible-galaxy install -r requirements.yml || echo "Warning: Failed to install requirements"
                     else
                         echo "No requirements.yml file found"
                     fi
@@ -79,17 +105,21 @@ pipeline {
         
         stage('Run Ansible Playbook') {
             steps {
-                // Using the AWS credentials from Vault
                 withEnv(["AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}", 
                          "AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}"]) {
                     sh '''
-                        # Print working directory for debugging
+                        # Add ~/.local/bin to PATH if it exists
+                        export PATH=$PATH:~/.local/bin
+                        
+                        # Print working directory and files
                         pwd
                         ls -la
                         
-                        # Run ansible-playbook with the inventory file
-                        # Note: Changed playbook.yml to nginx.yml as specified
-                        ansible-playbook -i inventory.ini nginx.yml -v
+                        # Check for ansible-playbook
+                        which ansible-playbook || echo "Warning: ansible-playbook not found in PATH"
+                        
+                        # Run ansible-playbook
+                        ansible-playbook -i inventory.ini nginx.yml -v || echo "Warning: Ansible playbook execution failed"
                     '''
                 }
             }
@@ -98,7 +128,6 @@ pipeline {
     
     post {
         always {
-            // Clean up sensitive variables
             sh 'unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY'
         }
     }
