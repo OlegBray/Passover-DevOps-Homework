@@ -8,18 +8,11 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 sh '''
-                    # Check if we have sudo access
-                    if command -v sudo &> /dev/null; then
-                        SUDO="sudo"
-                    else
-                        SUDO=""
-                    fi
-                    
                     # Check if Python is installed
                     if ! command -v python3 &> /dev/null; then
                         echo "Installing Python 3..."
-                        $SUDO apt-get update -y || echo "Warning: apt-get update failed"
-                        $SUDO apt-get install -y python3 python3-pip || echo "Warning: Python installation failed"
+                        apt-get update -y || echo "Warning: apt-get update failed"
+                        apt-get install -y python3 python3-pip || echo "Warning: Python installation failed"
                     else
                         echo "Python 3 is already installed"
                     fi
@@ -27,7 +20,7 @@ pipeline {
                     # Check if pip is installed
                     if ! command -v pip3 &> /dev/null; then
                         echo "Installing pip3..."
-                        $SUDO apt-get install -y python3-pip || echo "Warning: pip installation failed"
+                        apt-get install -y python3-pip || echo "Warning: pip installation failed"
                     else
                         echo "pip3 is already installed"
                     fi
@@ -35,7 +28,7 @@ pipeline {
                     # Install Ansible (try both with and without sudo)
                     if ! command -v ansible &> /dev/null; then
                         echo "Installing Ansible..."
-                        $SUDO pip3 install ansible || pip3 install ansible --user || echo "Warning: Ansible installation failed"
+                        pip3 install ansible || pip3 install ansible --user || echo "Warning: Ansible installation failed"
                     else
                         echo "Ansible is already installed"
                     fi
