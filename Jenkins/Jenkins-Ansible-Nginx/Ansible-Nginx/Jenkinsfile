@@ -10,16 +10,16 @@ pipeline {
                 sh '''
                     # Check if Python is installed
                     echo "Installing Python 3..."
-                    apt update -y || echo "Warning: apt-get update failed"
-                    apt install -y python3 python3-pip || echo "Warning: Python installation failed"
+                    sudo apt update -y || echo "Warning: apt-get update failed"
+                    sudo apt install -y python3 python3-pip || echo "Warning: Python installation failed"
                     
                     # Check if pip is installed
                     echo "Installing pip3..."
-                    apt install -y python3-pip || echo "Warning: pip installation failed"
+                    sudo apt install -y python3-pip || echo "Warning: pip installation failed"
                     
                     # Install Ansible (try both with and without sudo)
                     echo "Installing Ansible..."
-                    apt install ansible || echo "Warning: Ansible installation failed"
+                    sudo apt install ansible || echo "Warning: Ansible installation failed"
                     
                     # Display versions
                     python3 --version || echo "Python not installed"
@@ -66,8 +66,8 @@ pipeline {
                 // Install ansible on Jenkins agent if not already installed
                 sh '''
                     if ! command -v ansible-playbook &> /dev/null; then
-                        apt update
-                        apt install -y ansible
+                        sudo apt update
+                        sudo apt install -y ansible
                     fi
                 '''
             }
