@@ -73,17 +73,6 @@ pipeline {
             }
         }
         
-        // stage('Prepare Inventory') {
-        //     steps {
-        //         // Create inventory file for the target VM
-        //         sh '''
-        //             echo "[webserver]" > inventory
-        //             echo "${VM_HOST} ansible_user=${VM_USER} ansible_ssh_private_key_file=~/.ssh_temp/ssh_key.pem ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> inventory
-        //             cat inventory
-        //         '''
-        //     }
-        // }
-        
         stage('Run Ansible Playbook') {
             steps {
                 withEnv(["AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}", 
