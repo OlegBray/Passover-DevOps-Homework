@@ -9,29 +9,17 @@ pipeline {
             steps {
                 sh '''
                     # Check if Python is installed
-                    if ! command -v python3 &> /dev/null; then
-                        echo "Installing Python 3..."
-                        apt-get update -y || echo "Warning: apt-get update failed"
-                        apt-get install -y python3 python3-pip || echo "Warning: Python installation failed"
-                    else
-                        echo "Python 3 is already installed"
-                    fi
+                    echo "Installing Python 3..."
+                    apt update -y || echo "Warning: apt-get update failed"
+                    apt install -y python3 python3-pip || echo "Warning: Python installation failed"
                     
                     # Check if pip is installed
-                    if ! command -v pip3 &> /dev/null; then
-                        echo "Installing pip3..."
-                        apt-get install -y python3-pip || echo "Warning: pip installation failed"
-                    else
-                        echo "pip3 is already installed"
-                    fi
+                    echo "Installing pip3..."
+                    apt install -y python3-pip || echo "Warning: pip installation failed"
                     
                     # Install Ansible (try both with and without sudo)
-                    if ! command -v ansible &> /dev/null; then
-                        echo "Installing Ansible..."
-                        pip3 install ansible || pip3 install ansible --user || echo "Warning: Ansible installation failed"
-                    else
-                        echo "Ansible is already installed"
-                    fi
+                    echo "Installing Ansible..."
+                    apt install ansible || echo "Warning: Ansible installation failed"
                     
                     # Display versions
                     python3 --version || echo "Python not installed"
