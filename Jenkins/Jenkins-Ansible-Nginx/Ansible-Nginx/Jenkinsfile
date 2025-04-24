@@ -1,0 +1,67 @@
+pipeline {
+    agent any
+    environment {
+        VAULT_ADDR = 'http://vault:8200'
+        AWS_CREDS_PATH = 'secret/data/aws/creds'
+        // Don't store actual credentials in environment variables that might be logged
+        // We'll use withEnv later for the actual credentials
+    }
+    stages {
+        stage('Read AWS Credentials from Vault') {
+            steps {
+                withCredentials([string(credentialsId: 'vault-token', variable: 'VAULT_TOKEN')]) {
+                    script {
+                        try {
+                            def response = httpRequest(
+                                httpMode: 'GET',
+                                url: "${env.VAULT_ADDR}/v1/${env.AWS_CREDS_PATH}",
+                                customHeaders: [[name: 'X-Vault-Token', value: VAULT_TOKEN]],
+                                validResponseCodes: '200'
+                            )
+                            
+                            echo "Vault response status: ${response.status}"
+                            
+                            def json = readJSON text: response.content
+                            
+                            // Store AWS credentials as local variables first
+                            if (json.data && json.data.data && json.data.data.access_key_id && json.data.data.secret_access_key) {
+                                env.AWS_ACCESS_KEY_ID = json.data.data.access_key_id
+                                env.AWS_SECRET_ACCESS_KEY = json.data.data.secret_access_key
+                                echo "✅ AWS credentials retrieved successfully"
+                            } else {
+                                error "AWS credentials not found in Vault response!"
+                            }
+                        } catch (Exception e) {
+                            echo "Error accessing Vault: ${e.message}"
+                            throw e
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Run Ansible Playbook') {
+            steps {
+                // Using the AWS credentials from Vault
+                withEnv(["AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}", 
+                         "AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}"]) {
+                    sh '''
+                        # Print working directory for debugging
+                        pwd
+                        ls -la
+                        
+                        # Run ansible-playbook with the inventory file
+                        ansible-playbook -i inventory.ini playbook.yml -v
+                    '''
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            // Clean up sensitive variables
+            sh 'unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY'
+        }
+    }
+}
