@@ -1,43 +1,46 @@
 pipeline {
     agent any
-
     environment {
-        VAULT_ADDR = '<your address>'
-        VAULT_SECRET_PATH = '<your secret path in vault>'
-        VAULT_TOKEN_FILE = '<you token path in the machine>'
+        VAULT_ADDR = 'http://vault:8200'
+        VAULT_SECRET_PATH = 'secret/data/jenkins/tmp_param'
     }
-
     stages {
-        stage('Read Vault Token') {
+        stage('Read Secret from Vault') {
             steps {
-                script {
-                    env.VAULT_TOKEN = readFile(VAULT_TOKEN_FILE).trim()
-                    echo "Vault token read from file (length = ${env.VAULT_TOKEN.length()})"
+                withCredentials([string(credentialsId: 'vault-token', variable: 'VAULT_TOKEN')]) {
+                    script {
+                        try {
+                            def response = httpRequest(
+                                httpMode: 'GET',
+                                url: "${env.VAULT_ADDR}/v1/${env.VAULT_SECRET_PATH}",
+                                customHeaders: [[name: 'X-Vault-Token', value: VAULT_TOKEN]],
+                                validResponseCodes: '200'
+                            )
+                            
+                            echo "Vault response status: ${response.status}"
+                            
+                            def json = readJSON text: response.content
+                            
+                            if (json.data && json.data.data && json.data.data.name) {
+                                def nameValue = json.data.data.name
+                                echo "✅ Vault param 'name' = ${nameValue}"
+                                
+                                env.SECRET_NAME = nameValue
+                            } else {
+                                error "Secret 'name' not found in Vault response!"
+                            }
+                        } catch (Exception e) {
+                            echo "Error accessing Vault: ${e.message}"
+                            throw e
+                        }
+                    }
                 }
             }
         }
-
-        stage('Read Secret from Vault (KV v1)') {
+        
+        stage('Use Secret') {
             steps {
-                script {
-                    def response = httpRequest(
-                        httpMode: 'GET',
-                        url: "${env.VAULT_ADDR}/v1/${env.VAULT_SECRET_PATH}",
-                        customHeaders: [[name: 'X-Vault-Token', value: env.VAULT_TOKEN]],
-                        validResponseCodes: '200'
-                    )
-
-                    echo "Vault response status: ${response.status}"
-
-                    def json = readJSON text: response.content
-
-                    if (!json.data || !json.data.name) {
-                        error "Secret 'name' not found in Vault response!"
-                    }
-
-                    def nameValue = json.data.name
-                    echo "Vault param 'name' = ${nameValue}"
-                }
+                echo "Using secret value: ${env.SECRET_NAME}"
             }
         }
     }
