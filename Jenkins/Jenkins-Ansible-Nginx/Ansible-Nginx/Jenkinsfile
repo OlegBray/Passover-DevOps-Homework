@@ -9,7 +9,7 @@ pipeline {
     stages {
         stage('Read AWS Credentials from Vault') {
             steps {
-                withCredentials([string(credentialsId: 'vault-token', variable: 'VAULT_TOKEN')]) {
+                withCredentials([string(credentialsId: 'vault-token-secret-text', variable: 'VAULT_TOKEN')]) {
                     script {
                         try {
                             def response = httpRequest(
