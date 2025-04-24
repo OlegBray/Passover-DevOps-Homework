@@ -96,6 +96,7 @@ pipeline {
                         pwd
                         ls -la
                         cd "Jenkins/Jenkins-Ansible-Nginx/Ansible-Nginx"
+                        pwd
                         # Check for ansible-playbook
                         which ansible-playbook || echo "Warning: ansible-playbook not found in PATH"
                         
