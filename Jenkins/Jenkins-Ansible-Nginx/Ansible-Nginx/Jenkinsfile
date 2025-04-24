@@ -2,7 +2,7 @@ pipeline {
     agent any
     environment {
         VAULT_ADDR = 'http://vault:8200'
-        AWS_CREDS_PATH = 'secret/data/aws/creds'
+        AWS_CREDS_PATH = 'secret/data/aws/privat-key'
         // Don't store actual credentials in environment variables that might be logged
         // We'll use withEnv later for the actual credentials
     }
