@@ -1,0 +1,53 @@
+pipeline {
+    agent any
+
+    // You can use parameters like this or via jenkins itself.
+    parameters {
+        string(name: 'VALUE', defaultValue: '<Your parameter value>', description: 'Value to store in Consul')
+        string(name: 'KEY', defaultValue: 'http://<Your Machine>:8500/v1/kv/<Your Desired Path>', description: 'Consul KV key URL')
+    }
+
+    stages {
+        stage('Put message') {
+            steps {
+                sh """
+                curl --request PUT --data "${params.VALUE}" "${params.KEY}"
+                """
+            }
+        }
+
+        // Stage may ask you to approve JAVA, in "in-proccess approvals" on jenkins system for decodeBase64.
+        stage('Get message') {
+            steps {
+                script {
+                    def response = sh(
+                        script: "curl -s ${params.KEY}",
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Consul raw response: ${response}"
+
+                    try {
+                        def json = readJSON text: response
+                        def decoded = new String(json[0].Value.decodeBase64())
+                        echo "Decoded message: ${decoded}"
+                    } catch (err) {
+                        echo "Failed to parse JSON: ${err}"
+                        error("Could not parse response as JSON. Check Consul URL or network.")
+                    }
+                }
+            }
+        }
+    }
+
+    // Make sure Slack Notification plugin installed and configured.
+    post {
+        success {
+            slackSend (
+                channel: '<You Desired Channel>',
+                message: "✅ Build SUCCESS: ${env.JOB_NAME} [${env.BUILD_NUMBER}] (<${env.BUILD_URL}|View build>)",
+                color: 'good'
+            )
+        }
+    }
+}

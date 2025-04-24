@@ -1,0 +1,51 @@
+---
+- name: Prepare EC2 instance to auto-update DNS via cloud-init
+  hosts: servers
+  become: yes
+  vars:
+    cloud_init_script_path: /var/lib/cloud/scripts/per-boot/update-route53.sh
+
+  tasks:
+
+    - name: Install unzip (required for awscli install)
+      package:
+        name: unzip
+        state: present
+
+    - name: Install cloud-init and jq
+      package:
+        name:
+          - cloud-init
+          - jq
+        state: present
+
+    - name: Install AWS CLI v2
+      shell: |
+        curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "/tmp/awscliv2.zip"
+        unzip -q /tmp/awscliv2.zip -d /tmp
+        /tmp/aws/install --update
+      args:
+        creates: /usr/local/bin/aws
+
+    - name: Copy Route53 update script to cloud-init per-boot directory
+      copy:
+        src: update-route53.sh
+        dest: "{{ cloud_init_script_path }}"
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Ensure cloud-init is enabled
+      service:
+        name: cloud-init
+        enabled: true
+        state: started
+
+    - name: Run the script immediately (so we don't wait for reboot)
+      command: bash {{ cloud_init_script_path }}
+      register: run_result
+      ignore_errors: true
+
+    - name: Show output
+      debug:
+        var: run_result.stdout_lines

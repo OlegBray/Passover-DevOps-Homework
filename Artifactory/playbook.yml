@@ -1,0 +1,109 @@
+---
+- name: Install JFrog Artifactory OSS from S3
+  hosts: servers
+  become: yes
+
+  vars:
+    s3_bucket: "imtech-2025"
+    s3_key: "oleg/artifactory.tar.gz"
+    local_tarball_path: "/tmp/jfrog-artifactory.tar.gz"
+    install_dir: "/opt/artifactory"
+    artifactory_user: "artifactory"
+
+  tasks:
+
+    - name: Install packages default-jre and unzip
+      apt:
+        name:
+          - default-jre
+          - unzip
+        update_cache: yes
+
+    - name: Download AWS CLI installer
+      get_url:
+        url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+        dest: /tmp/awscliv2.zip
+
+    - name: Unzip AWS CLI installer
+      unarchive:
+        src: /tmp/awscliv2.zip
+        dest: /tmp
+        remote_src: yes
+
+    - name: Install AWS CLI
+      shell: |
+        /tmp/aws/install --update
+      args:
+        creates: /usr/local/bin/aws
+
+    - name: Create artifactory user
+      user:
+        name: "{{ artifactory_user }}"
+        shell: /bin/false
+        system: yes
+        create_home: no
+
+    - name: Create installation directory
+      file:
+        path: "{{ install_dir }}"
+        state: directory
+        owner: "{{ artifactory_user }}"
+        group: "{{ artifactory_user }}"
+        mode: '0755'
+
+    - name: Download Artifactory tarball from S3
+      command: >
+        aws s3 cp s3://{{ s3_bucket }}/{{ s3_key }} {{ local_tarball_path }}
+      args:
+        creates: "{{ local_tarball_path }}"
+
+    - name: Extract Artifactory
+      unarchive:
+        src: "{{ local_tarball_path }}"
+        dest: "{{ install_dir }}"
+        remote_src: yes
+        owner: "{{ artifactory_user }}"
+        group: "{{ artifactory_user }}"
+
+    - name: Set permissions
+      file:
+        path: "{{ install_dir }}"
+        recurse: yes
+        owner: "{{ artifactory_user }}"
+        group: "{{ artifactory_user }}"
+
+    - name: Create systemd service for Artifactory
+      copy:
+        dest: /etc/systemd/system/artifactory.service
+        content: |
+          [Unit]
+          Description=JFrog Artifactory
+          After=network.target
+
+          [Service]
+          Type=simple
+          User={{ artifactory_user }}
+          ExecStart={{ install_dir }}/artifactory-oss-7.104.15/app/bin/artifactory.sh
+          Restart=on-abort
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Restart Artifactory
+
+    - name: Allow port 8081 through UFW (if UFW is installed)
+      ansible.builtin.shell: |
+        ufw allow 8081/tcp || true
+      when: ansible_facts.packages['ufw'] is defined
+      ignore_errors: true
+
+    - name: Enable Artifactory service
+      systemd:
+        name: artifactory
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: Restart Artifactory
+      systemd:
+        name: artifactory
+        state: restarted
