@@ -1,8 +1,11 @@
 services:
   app:
-    image: jenkins/jenkins:2.506
+    image: jenkins/jenkins
     container_name: jenkins
-    user: root
+#    user: root
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - 9090:8080
       - 50000:50000
@@ -11,21 +14,10 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /usr/bin/docker:/usr/bin/docker
       - /home/oleg/.ssh:/var/jenkins_home/.ssh
+      - ~/Downloads:/tmp/
+#      - /home/oleg/.ssh:/root/.ssh
     networks:
       - jenkins
-
-  #agent:
-   # image: jenkins/inbound-agent
-   # container_name: jenkins-agent
-   # environment:
-   #   - JENKINS_URL=http://127.0.0.1:8080
-   #   - JENKINS_AGENT_WORKDIR=/var/jenkins_home/agent
-   #   - JENKINS_SECRET=REPLACE_WITH_AGENT_SECRET
-   #   - JENKINS_NAME=agent-1
-   # depends_on:
-   #   - jenkins
-   # networks:
-   #   - jenkins-net
 
   web:
     image: nginx:latest
@@ -43,3 +35,4 @@ volumes:
 networks:
   jenkins:
     external: true
+
