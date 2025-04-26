@@ -4,8 +4,8 @@
   become: yes
 
   vars:
-    s3_bucket: "imtech-2025"
-    s3_key: "oleg/artifactory.tar.gz"
+    s3_bucket: "<Your S3 bucket>"
+    s3_key: "<Your tar.gz path>"
     local_tarball_path: "/tmp/jfrog-artifactory.tar.gz"
     install_dir: "/opt/artifactory"
     artifactory_user: "artifactory"
