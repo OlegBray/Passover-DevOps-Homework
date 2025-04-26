@@ -1,7 +1,7 @@
 #!/bin/bash
 
-DOMAIN_NAME="aws.cts.care."
-TAG_NAME="Name"
+DOMAIN_NAME="<Your domain/sub-domain>"
+TAG_NAME="<Your tag of the machine>"
 SUB_DOMAIN_PREFIX="<Your Subdomain Prefix>"
 ROUTE53_MAIN_DOMAIN_ID=$(aws route53 list-hosted-zones | jq -r --arg domain "$DOMAIN_NAME" '.HostedZones[] | select(.Name==$domain) | .Id')
 FULL_DOMAIN="${SUB_DOMAIN_PREFIX}.${DOMAIN_NAME}"
